@@ -1,0 +1,81 @@
+This boilerplate provides a production-ready structure for your AI Service. It uses FastAPI for the API layer and Sentence-Transformers for the local semantic validation.1. Project SetupFirst, ensure your team installs the necessary dependencies:Bashpip install fastapi uvicorn sentence-transformers pydantic
+2. The Implementation (main.py)Pythonfrom fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer, util
+import torch
+
+app = FastAPI(title="Hala Journal AI Service")
+
+# 1. Initialize the local Small Model (Layer 2)
+# 'all-MiniLM-L6-v2' is fast, lightweight (~80MB), and excellent for similarity checks
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+# 2. Define Official Scopes for Hala Journal
+# These descriptive strings help the model understand the "vibe" of allowed topics
+OFFICIAL_SCOPES = [
+    "Islamic daily habits, worship, and spiritual growth",
+    "Mental health, stress management, and emotional healing",
+    "Productivity, time management, and remote work discipline",
+    "Marriage, family relationships, and finding a soulmate in Islam",
+    "Character building (Akhlaq) and self-improvement",
+    "Quranic reflection and Sunnah-based lifestyle"
+]
+
+# Pre-compute scope embeddings on startup to save latency during requests
+SCOPE_EMBEDDINGS = model.encode(OFFICIAL_SCOPES, convert_to_tensor=True)
+
+# 3. Request/Response Schemas
+class UserRequest(BaseModel):
+    user_input: str
+
+class ValidationResult(BaseModel):
+    is_in_scope: bool
+    confidence_score: float
+    message: str
+
+# 4. Semantic Validation Logic
+def validate_semantic_scope(query: str, threshold: float = 0.40):
+    """
+    Checks if the user input is semantically related to Hala Journal's mission.
+    """
+    # Encode user input
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    
+    # Compute cosine similarity against all scopes
+    cosine_scores = util.cos_sim(query_embedding, SCOPE_EMBEDDINGS)
+    
+    # Get the highest score
+    max_score = torch.max(cosine_scores).item()
+    
+    return max_score >= threshold, max_score
+
+@app.post("/generate-journey", status_code=status.HTTP_200_OK)
+async def generate_journey(request: UserRequest):
+    # --- LAYER 2: SEMANTIC VALIDATION ---
+    is_valid, score = validate_semantic_scope(request.user_input)
+    
+    if not is_valid:
+        return {
+            "status": "error",
+            "code": "OUT_OF_SCOPE",
+            "confidence_score": round(score, 4),
+            "message": {
+                "id": "Maaf, permintaanmu berada di luar jangkauan bimbingan Hala Journal.",
+                "en": "Sorry, your request is outside the scope of Hala Journal guidance."
+            }
+        }
+
+    # --- LAYER 3: LLM INFERENCE (GEMINI) ---
+    # Logic to call Gemini goes here (only if Layer 2 passes)
+    # response = call_gemini_logic(request.user_input)
+    
+    return {
+        "status": "success",
+        "confidence_score": round(score, 4),
+        "data": "Pseudo-LLM-Response-Data" # Replace with actual Gemini output
+    }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+3. Key Technical Highlights for Your Team:Semantic Similarity: We use util.cos_sim to compare the vector of the user's input against our pre-defined "Official Scopes." If the user asks about "Cooking" or "Crypto," the similarity score will be very low (usually $< 0.2$), triggering an automatic rejection.Threshold Strategy (0.40):Higher (> 0.5): Very strict. Might reject valid but vaguely phrased spiritual questions.Lower (< 0.3): Too loose. Might let unrelated topics slip through.Recommendation: Start with 0.40 and adjust based on beta testing.Performance:By using convert_to_tensor=True, we utilize PyTorch's speed.The all-MiniLM model is small enough to run on a standard CPU without needing a dedicated GPU for this validation layer.Scalability:Since the SCOPE_EMBEDDINGS are calculated once on startup, the actual check per request takes roughly 10ms - 30ms.How to Test:Test Pass: "I feel disconnected from my prayers" -> Should return success.Test Fail: "How to fix a broken car engine?" -> Should return OUT_OF_SCOPE.

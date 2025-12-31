@@ -1,0 +1,127 @@
+This is the complete End-to-End AI Service Boilerplate. I have integrated Layer 3 (Gemini 1.5 Flash) with the semantic filter. This code includes the system prompt logic we refined earlier and handles the transition from validation to generation.
+
+1. Updated Dependencies
+Your team will need the Google Generative AI SDK:
+
+Bash
+
+pip install fastapi uvicorn sentence-transformers pydantic google-generativeai python-dotenv
+2. The Complete Implementation (main.py)
+Python
+
+import os
+import json
+from typing import Optional
+from fastapi import FastAPI, status
+from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer, util
+import torch
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = FastAPI(title="Hala Journal AI Service - Production")
+
+# --- CONFIGURATION ---
+# 1. Initialize Gemini
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+
+# 2. Initialize Semantic Filter (Layer 2)
+semantic_model = SentenceTransformer('all-MiniLM-L6-v2')
+OFFICIAL_SCOPES = [
+    "Islamic daily habits, worship, and spiritual growth",
+    "Mental health, stress management, and emotional healing",
+    "Productivity, time management, and remote work discipline",
+    "Marriage, family relationships, and finding a soulmate in Islam",
+    "Character building (Akhlaq) and self-improvement"
+]
+SCOPE_EMBEDDINGS = semantic_model.encode(OFFICIAL_SCOPES, convert_to_tensor=True)
+
+# 3. Request/Response Schemas
+class UserRequest(BaseModel):
+    user_input: str
+
+# --- CORE LOGIC ---
+
+def get_system_instruction():
+    """Returns the rigid constraints for Gemini."""
+    return (
+        "You are the 'Hala Journal Planner' Engine. Output ONLY valid JSON. "
+        "Create a journey with 2-4 tasks per day. Use '1-n' for recurring habits "
+        "and '1', '2' for progressive tasks. Language: Bilingual (id, en). "
+        "Task types: [reflection, sadaqah, praying, gratitude, dhikr, quran, habit_break, kindness, self_care, physical_act]. "
+        "Time formats: 'at-HH:mm', 'morning', 'afternoon', 'evening', 'night', 'before_sleep', 'anytime'."
+    )
+
+async def call_gemini_generation(user_query: str):
+    """Handles the actual LLM call."""
+    prompt = f"""
+    --- USER CONTEXT ---
+    Goal: "{user_query}"
+    
+    --- INSTRUCTION ---
+    1. Determine duration (1-60 days).
+    2. Generate structured JSON following the system schema.
+    3. Ensure a mix of daily habits and unique daily tasks.
+    """
+    
+    # Using Gemini 1.5 Flash with JSON constrained output
+    response = gemini_model.generate_content(
+        prompt,
+        generation_config={
+            "response_mime_type": "application/json",
+            "temperature": 0.7
+        },
+        system_instruction=get_system_instruction()
+    )
+    
+    return json.loads(response.text)
+
+# --- API ENDPOINTS ---
+
+@app.post("/generate-journey")
+async def generate_journey(request: UserRequest):
+    # LAYER 2: SEMANTIC VALIDATION
+    query_embedding = semantic_model.encode(request.user_input, convert_to_tensor=True)
+    cosine_scores = util.cos_sim(query_embedding, SCOPE_EMBEDDINGS)
+    max_score = torch.max(cosine_scores).item()
+
+    if max_score < 0.40:
+        return {
+            "status": "error",
+            "code": "OUT_OF_SCOPE",
+            "message": {
+                "id": "Maaf, permintaanmu berada di luar jangkauan bimbingan Hala Journal.",
+                "en": "Sorry, your request is outside the scope of Hala Journal guidance."
+            }
+        }
+
+    # LAYER 3: GEMINI GENERATION
+    try:
+        journey_data = await call_gemini_generation(request.user_input)
+        return {
+            "status": "success",
+            "validation_score": round(max_score, 4),
+            "data": journey_data
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "code": "GENERATION_FAILED",
+            "message": {"id": "Terjadi kesalahan sistem.", "en": "Internal server error."},
+            "details": str(e)
+        }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+3. Strategy & Implementation Notes
+JSON Enforcement: I used response_mime_type: "application/json". This is a native Gemini 1.5 feature that guarantees the output won't have "Sure, here is your JSON..." text. It makes parsing much safer.
+
+System Instructions: Notice how the system_instruction is passed separately in the Gemini SDK. This makes the core rules much harder to "bypass" via user prompt injection.
+
+Asynchronous Processing: The endpoint is async, which is vital. While Gemini is generating the journey (which takes 3–7 seconds), your FastAPI server can still listen for other validation requests.
+
+Error Handling: If Gemini fails (e.g., API quota hit or safety filter triggered), the system returns a standardized GENERATION_FAILED code, allowing your NestJS Main API to handle it gracefully.

@@ -1,0 +1,67 @@
+🛠️ Technical Documentation: AI Service Multi-Layer Pipeline
+1. System Overview
+The AI Service acts as a secure, grounded gateway between the Main API (NestJS) and the Large Language Model (Gemini 1.5 Flash). It utilizes a Retrieval-Augmented Generation (RAG) architecture to ensure every generated journey is backed by authentic Islamic sources and proprietary journaling strategies.
+Data Flow: User Input → Basic Sanitization → Semantic Filtering → Ethical Guardrails → Context Retrieval (RAG) → LLM Inference.
+
+2. Layer 1: Deterministic Sanitization (Basic Checks)
+Lightweight Python logic to filter low-quality or malicious inputs.
+Constraint Validation:
+Min Length: Rejects inputs < 10 chars.
+Max Length: Rejects inputs > 500 chars (prevents token bloat).
+Prompt Injection Detection: Filters patterns like "Ignore all previous instructions" or "System Admin mode".
+Profanity Filtering: Blocks vulgar language using local dictionaries.
+
+3. Layer 2: Semantic Scope Validation (Small Model)
+Uses Sentence-Transformers (all-MiniLM-L6-v2) to ensure the topic aligns with the platform’s mission.
+Mechanism: Cosine Similarity check against Official Scopes (Worship, Mental Health, Productivity, etc.).
+Decision Logic: * Score > 0.45: Proceed to next layer.
+Score < 0.45: Reject as OUT_OF_SCOPE.
+
+4. Layer 3: Safety & Ethical Guardrails
+Ensures the AI operates within ethical and Islamic boundaries.
+Harmful Intent: Intercepts self-harm or violent queries and returns static help resources.
+Ethical Alignment: Flags and rejects requests that explicitly contradict Islamic principles (e.g., gambling, alcohol) to maintain brand authority.
+
+5. Layer 4: Context Retrieval (RAG via ChromaDB)
+This layer grounds the AI in reality by providing specific, verified data instead of relying on the LLM's general training data.
+Vector Database: ChromaDB (Persistent storage).
+Retrieval Mechanism: 1. The User Input is converted into a vector embedding.
+2. ChromaDB performs a Similarity Search to find the top $N$ most relevant entries from our curated dataset.
+Dataset Components:
+Authentic Verses (Quran): Specific Surah/Ayah relevant to the user's struggle.
+Authentic Hadith: Validated prophetic traditions.
+Seed Tasks: Proprietary journaling prompts and strategies unique to Hala Journal.
+Benefit: Eliminates "Hallucinations" by forcing the LLM to use the retrieved context as the primary source of truth.
+
+6. Layer 5: Prompt Enrichment & LLM Inference
+The final stage where the validated input and retrieved context are merged into a final instruction for the LLM.
+Prompt Injection: The system wraps the retrieved ChromaDB Context and the User Input into a strict System Instruction.
+Instruction: "Using ONLY the provided Verses and Strategies from the Context below, generate a 14-day journey in JSON format..."
+Execution: Handled by Gemini 1.5 Flash with response_mime_type: "application/json".
+
+7. Standardized Error Response Schema
+JSON
+{
+  "status": "error",
+  "code": "OUT_OF_SCOPE | INJECTION_DETECTED | SAFETY_VIOLATION | RAG_FAILURE",
+  "message": {
+    "id": "Maaf, permintaanmu berada di luar jangkauan bimbingan Hala Journal...",
+    "en": "Sorry, your request is outside the scope of Hala Journal guidance..."
+  },
+  "suggested_action": "Try asking about spiritual habits or productivity."
+}
+
+
+8. Technology Stack
+Framework: FastAPI.
+Vector DB: ChromaDB (Semantic search/Knowledge base).
+Local NLP: sentence-transformers (all-MiniLM-L6-v2) for both validation and RAG embeddings.
+LLM SDK: google-generativeai (Gemini 1.5 Flash).
+Validation: Pydantic v2.
+
+9. Strategic Value (CTO Perspective)
+Authenticity & Trust: By using Layer 4 (RAG), we ensure every verse and hadith is accurate, which is the most critical requirement for an Islamic app.
+Data Sovereignty: Our proprietary "Hala Strategies" are stored in ChromaDB, meaning the "soul" of our coaching remains in our database, not inside Google's model.
+Cost & Latency: The local validation and local ChromaDB search take <100ms total, ensuring we only pay for LLM inference when the request is 100% valid and context-ready.
+
+

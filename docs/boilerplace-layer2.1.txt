@@ -1,0 +1,102 @@
+📚 Documentation: RAG Layer (ChromaDB Integration)
+1. Why ChromaDB?
+Gemini 1.5 is powerful, but it can "hallucinate" (misquote) verses or hadiths. ChromaDB acts as our Long-Term Memory, storing our curated Islamic database.
+Precision: Gemini only uses the specific references we provide.
+Customization: You can add your own "Seed Tasks" or unique coaching strategies that aren't in the public domain.
+2. Updated Architecture Flow
+User Input → Semantic Filter → ChromaDB Query (Context Retrieval) → Prompt Injection → Gemini Generation.
+
+3. Implementation: Python AI Service with ChromaDB
+You'll need to install the ChromaDB client:
+Bash
+pip install chromadb
+
+Updated main.py (Integrated with ChromaDB)
+Python
+import os
+import json
+import chromadb
+from chromadb.utils import embedding_functions
+from fastapi import FastAPI
+from sentence_transformers import SentenceTransformer, util
+import google.generativeai as genai
+
+# ... (Previous imports and FastAPI setup) ...
+
+# 1. Initialize ChromaDB (Persistent Storage)
+chroma_client = chromadb.PersistentClient(path="./hala_chroma_db")
+
+# 2. Define Embedding Function 
+# (Crucial: Use the same model as Layer 2 for consistency)
+sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
+# 3. Access/Create the Islamic Knowledge Collection
+collection = chroma_client.get_or_create_collection(
+    name="islamic_references",
+    embedding_function=sentence_transformer_ef
+)
+
+# --- NEW: RAG LOGIC ---
+
+def get_context_from_db(query: str, n_results: int = 3):
+    """Retrieves relevant verses, hadiths, or strategies from ChromaDB."""
+    results = collection.query(
+        query_texts=[query],
+        n_results=n_results
+    )
+    # Combine the results into a single string for the prompt
+    context = "\n".join(results['documents'][0])
+    return context
+
+async def call_gemini_with_rag(user_query: str):
+    """Retrieves context first, then calls Gemini."""
+    
+    # STEP A: Retrieve Context from ChromaDB
+    db_context = get_context_from_db(user_query)
+    
+    # STEP B: Inject Context into the Prompt
+    prompt = f"""
+    --- DATABASE CONTEXT (Official Hala References) ---
+    {db_context}
+    
+    --- USER STRUGGLE ---
+    "{user_query}"
+    
+    --- INSTRUCTION ---
+    Using the DATABASE CONTEXT provided above as your primary reference, create a journey plan.
+    1. If a specific verse or hadith is in the context, use it in the JSON.
+    2. Maintain the requested JSON structure.
+    """
+    
+    response = gemini_model.generate_content(
+        prompt,
+        generation_config={"response_mime_type": "application/json", "temperature": 0.7},
+        system_instruction=get_system_instruction()
+    )
+    
+    return json.loads(response.text)
+
+# --- (Update the Endpoint to use call_gemini_with_rag) ---
+
+
+4. How to Seed your ChromaDB
+Your team needs a one-time script to "feed" the database with your Excel/JSON data of verses and hadiths.
+Example Seed Script:
+Python
+# Adding data to ChromaDB
+collection.add(
+    documents=[
+        "QS. Al-Baqarah: 216 - Fighting is prescribed for you, and you dislike it. But perhaps you hate a thing and it is good for you...",
+        "Hadith: The Prophet (PBUH) used to seek refuge from laziness and helplessness (Al-Bukhori).",
+        "Strategy: Workspace Hijrah - Move your laptop away from the bed to avoid laziness."
+    ],
+    ids=["verse_001", "hadith_001", "strategy_001"],
+    metadatas=[{"type": "verse"}, {"type": "hadith"}, {"type": "strategy"}]
+)
+
+
+5. Strategic Benefits for Hala Journal
+Contextual Accuracy: If a user says "I am lazy," ChromaDB finds the "Laziness Hadith" and "Workspace Hijrah Strategy" and hands them to Gemini. Gemini then weaves them into the JSON.
+No Hallucinations: You can force Gemini to only use verses found in the DATABASE CONTEXT block.
+Efficiency: Since we use the same all-MiniLM model for the Semantic Filter AND ChromaDB, the embeddings are reused, making the server very efficient.
+
