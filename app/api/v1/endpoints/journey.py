@@ -80,27 +80,175 @@ async def generate_journey(
 @router.post("/validate")
 async def validate_input(
     request: JourneyRequest,
+    fast: bool = False,  # Add fast mode parameter
     pipeline: PipelineOrchestrator = Depends(get_pipeline),
 ):
     """
     Validate user input without generating a journey.
     
     Useful for pre-validation before the full generation process.
-    Only runs layers 1-3 (sanitization, semantic, safety).
+    Runs layers 1-3 (sanitization, semantic, safety) only.
+    
+    Args:
+        request: Journey request with prompt and metadata
+        fast: If True, only runs sanitization layer for sub-second validation
     """
-    # For now, just run the full pipeline
-    # TODO: Add a validation-only mode to the pipeline
-    result = await pipeline.execute(
+    from app.pipelines.layer1_sanitization import SanitizationLayer
+    from app.pipelines.layer2_semantic import SemanticValidationLayer
+    from app.pipelines.layer3_safety import SafetyGuardrailsLayer
+    from app.services.embedding_service import EmbeddingService
+    from app.pipelines.base import PipelineContext
+    
+    try:
+        # Create context
+        context = PipelineContext(
+            raw_input=request.prompt,
+            user_id=request.user_id,
+            session_id=request.session_id,
+            language=request.language,
+        )
+        
+        # Run Layer 1: Sanitization (always runs)
+        layer1 = SanitizationLayer()
+        result1 = await layer1.process(context)
+        
+        if result1.status != "passed":
+            return {
+                "is_valid": False,
+                "failed_at_layer": "sanitization",
+                "error_code": result1.error_code,
+                "message": {
+                    "id": result1.message_id,
+                    "en": result1.message_en,
+                },
+                "suggested_action": result1.suggested_action,
+            }
+        
+        # Fast mode: return after sanitization only
+        if fast:
+            return {
+                "is_valid": True,
+                "fast_mode": True,
+                "detected_language": context.detected_language,
+                "layer_timings": context.layer_timings,
+                "message": "Fast validation passed (sanitization only)"
+            }
+        
+        # Full mode: continue with semantic and safety layers
+        # Initialize services
+        embedding_service = EmbeddingService()
+        await embedding_service.initialize()
+        
+        # Run Layer 2: Semantic Validation
+        layer2 = SemanticValidationLayer()
+        layer2.set_embedding_service(embedding_service)
+        result2 = await layer2.process(context)
+        
+        if result2.status != "passed":
+            return {
+                "is_valid": False,
+                "failed_at_layer": "semantic_validation",
+                "error_code": result2.error_code,
+                "confidence_score": list(context.semantic_scores.values())[0] if context.semantic_scores else 0.0,
+                "message": {
+                    "id": result2.message_id,
+                    "en": result2.message_en,
+                },
+                "suggested_action": result2.suggested_action,
+                "detected_scope": context.detected_scope,
+            }
+        
+        # Run Layer 3: Safety Guardrails
+        layer3 = SafetyGuardrailsLayer()
+        result3 = await layer3.process(context)
+        
+        if result3.status != "passed":
+            return {
+                "is_valid": False,
+                "failed_at_layer": "safety_guardrails",
+                "error_code": result3.error_code,
+                "message": {
+                    "id": result3.message_id,
+                    "en": result3.message_en,
+                },
+                "suggested_action": result3.suggested_action,
+                "safety_flags": context.safety_flags,
+            }
+        
+        # All layers passed
+        return {
+            "is_valid": True,
+            "confidence_score": list(context.semantic_scores.values())[0] if context.semantic_scores else 0.0,
+            "detected_scope": context.detected_scope,
+            "semantic_scores": context.semantic_scores,
+            "layer_timings": context.layer_timings,
+        }
+        
+    except Exception as e:
+        return {
+            "is_valid": False,
+            "failed_at_layer": "internal_error",
+            "error_code": "INTERNAL_ERROR",
+            "message": {
+                "id": f"Terjadi kesalahan internal: {str(e)}",
+                "en": f"Internal error occurred: {str(e)}",
+            },
+        }
+
+
+@router.post("/validate/benchmark")
+async def benchmark_validation(
+    request: JourneyRequest,
+):
+    """
+    Benchmark validation performance for optimization.
+    
+    Tests different validation modes to compare speed.
+    """
+    import time
+    from app.pipelines.layer1_sanitization import SanitizationLayer
+    from app.pipelines.layer2_semantic import SemanticValidationLayer
+    from app.services.embedding_service import EmbeddingService
+    from app.pipelines.base import PipelineContext
+    
+    results = {}
+    
+    # Test sanitization only
+    start_time = time.perf_counter()
+    context = PipelineContext(
         raw_input=request.prompt,
-        user_id=request.user_id,
-        session_id=request.session_id,
         language=request.language,
     )
+    layer1 = SanitizationLayer()
+    await layer1.process(context)
+    sanitization_time = (time.perf_counter() - start_time) * 1000
+    results["sanitization_only_ms"] = sanitization_time
+    
+    # Test with embedding initialization
+    start_time = time.perf_counter()
+    embedding_service = EmbeddingService()
+    await embedding_service.initialize()
+    init_time = (time.perf_counter() - start_time) * 1000
+    results["embedding_init_ms"] = init_time
+    
+    # Test semantic validation
+    start_time = time.perf_counter()
+    layer2 = SemanticValidationLayer()
+    layer2.set_embedding_service(embedding_service)
+    await layer2.process(context)
+    semantic_time = (time.perf_counter() - start_time) * 1000
+    results["semantic_validation_ms"] = semantic_time
+    
+    results["total_ms"] = sanitization_time + init_time + semantic_time
+    results["prompt_length"] = len(request.prompt)
     
     return {
-        "is_valid": result["status"] == "success",
-        "detected_scope": result.get("meta", {}).get("detected_scope"),
-        "semantic_scores": result.get("meta", {}).get("semantic_scores"),
+        "benchmark_results": results,
+        "recommendations": {
+            "fast_mode": "Use ?fast=true for sub-second validation",
+            "full_mode": "Full validation takes longer but provides scope detection",
+            "optimization": "First request slower due to model loading, subsequent faster"
+        }
     }
 
 

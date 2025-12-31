@@ -28,6 +28,17 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Default LLM Provider: {settings.default_llm_provider}")
     
+    # Pre-initialize embedding service for faster first request
+    logger.info("Initializing embedding service...")
+    try:
+        from app.services.embedding_service import EmbeddingService
+        embedding_service = EmbeddingService()
+        await embedding_service.initialize()
+        logger.info("Embedding service initialized successfully")
+    except Exception as e:
+        logger.warning(f"Failed to pre-initialize embedding service: {e}")
+        logger.info("Embedding service will be initialized on first use")
+    
     yield
     
     # Shutdown

@@ -29,6 +29,7 @@ class PipelineContext:
     user_id: Optional[str] = None
     session_id: Optional[str] = None
     language: str = "id"  # Default to Indonesian
+    detected_language: Optional[str] = None  # Auto-detected language
     
     # Layer 2: Semantic validation results
     semantic_scores: dict[str, float] = field(default_factory=dict)
