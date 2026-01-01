@@ -224,19 +224,19 @@ def _transform_gemini_response(gemini_data: Dict[str, Any]) -> Dict[str, Any]:
     """Transform Gemini response to match our expected schema."""
     
     # Map Gemini field names to our schema
-    transformed = {
-        "goal": gemini_data.get("goal", "Spiritual Growth"),
-        "total_days": gemini_data.get("total_days", gemini_data.get("duration_days", 30)),
-        "message": gemini_data.get("message", ""),
-        "introduction": gemini_data.get("introduction", {
-            "id": "Perjalanan spiritual untuk pertumbuhan rohani",
-            "en": "A spiritual journey for spiritual growth"
-        }),
-        "goal_keyword": gemini_data.get("goal_keyword", "spiritual-growth"),
-        "tags": gemini_data.get("tags", []),
-        "journey": gemini_data.get("journey", gemini_data.get("journey_plan", []))
-    }
-    
+    # transformed = {
+    #     "goal": gemini_data.get("goal", "Spiritual Growth"),
+    #     "total_days": gemini_data.get("total_days", gemini_data.get("duration_days", 30)),
+    #     "message": gemini_data.get("message", ""),
+    #     "introduction": gemini_data.get("introduction", {
+    #         "id": "Perjalanan spiritual untuk pertumbuhan rohani",
+    #         "en": "A spiritual journey for spiritual growth"
+    #     }),
+    #     "goal_keyword": gemini_data.get("goal_keyword", "spiritual-growth"),
+    #     "tags": gemini_data.get("tags", []),
+    #     "journey": gemini_data.get("journey", gemini_data.get("journey_plan", []))
+    # }
+    transformed = gemini_data  # Assuming Gemini response already matches our schema
     return transformed
 
 
