@@ -3,7 +3,7 @@ Journey API Schemas
 Pydantic models for request/response validation.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -64,8 +64,40 @@ class BilingualMessage(BaseModel):
     en: str = Field(..., description="English message")
 
 
+class BilingualVerse(BaseModel):
+    """Verse with Arabic, Indonesian, and English translations."""
+    
+    ar: Optional[str] = Field(None, description="Arabic text")
+    id: Optional[str] = Field(None, description="Indonesian translation")
+    en: Optional[str] = Field(None, description="English translation")
+
+
+class JourneyTask(BaseModel):
+    """Single task in the journey."""
+    
+    day: str = Field(..., description="Day or day range (e.g., '1', '1-14')")
+    type: str = Field(..., description="Task type: reflection, sadaqah, praying, gratitude, dhikr, quran, habit_break, action, kindness, self_care, physical_act")
+    time: str = Field(..., description="Time: morning, afternoon, evening, night, before_sleep, at-HH:mm, anytime")
+    title: BilingualMessage = Field(..., description="Task title in Indonesian and English")
+    description: BilingualMessage = Field(..., description="Task description in Indonesian and English")
+    verse: Optional[BilingualVerse] = Field(None, description="Optional verse reference")
+
+
+class JourneyData(BaseModel):
+    """The generated journey content matching the spec."""
+    
+    goal: str = Field(..., description="The user's goal")
+    total_days: int = Field(..., description="Total journey duration (1-60 days)")
+    message: Optional[str] = Field(None, description="Optional motivational message")
+    introduction: BilingualMessage = Field(..., description="Journey introduction in both languages")
+    goal_keyword: str = Field(..., description="Kebab-case keyword for categorization (e.g., 'career-anxiety')")
+    tags: List[str] = Field(default_factory=list, description="3-5 English tags for semantic matching")
+    journey: List[JourneyTask] = Field(default_factory=list, description="List of journey tasks")
+
+
+# Legacy schemas for backward compatibility
 class DayTask(BaseModel):
-    """Single task for a day in the journey."""
+    """Single task for a day in the journey (legacy)."""
     
     title: str
     description: str
@@ -74,29 +106,19 @@ class DayTask(BaseModel):
 
 
 class DayReflection(BaseModel):
-    """Evening reflection for a day."""
+    """Evening reflection for a day (legacy)."""
     
     prompt: str
     journaling_questions: list[str]
 
 
 class JourneyDay(BaseModel):
-    """Single day in the journey."""
+    """Single day in the journey (legacy)."""
     
     day: int
     theme: str
     morning_task: DayTask
     evening_reflection: DayReflection
-
-
-class JourneyData(BaseModel):
-    """The generated journey content."""
-    
-    journey_title: str
-    journey_description: str
-    scope: str
-    days: list[JourneyDay]
-    sources_used: dict[str, list[str]]
 
 
 class JourneyMeta(BaseModel):
@@ -105,6 +127,8 @@ class JourneyMeta(BaseModel):
     detected_scope: Optional[str] = None
     semantic_scores: Optional[dict[str, float]] = None
     documents_retrieved: Optional[int] = None
+    template_used: Optional[bool] = None
+    template_similarity: Optional[float] = None
     llm_provider: Optional[str] = None
     total_time_ms: Optional[float] = None
     layer_timings: Optional[dict[str, float]] = None

@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.exceptions import HalaAIException
-from app.api.v1.endpoints import health, journey
+from app.api.v1.endpoints import health, journey, sync
 from app.api.deps import shutdown_services
 from app.utils.logging import setup_logging, get_logger
 
@@ -101,6 +101,11 @@ app.include_router(
 
 app.include_router(
     journey.router,
+    prefix=settings.api_v1_prefix,
+)
+
+app.include_router(
+    sync.router,
     prefix=settings.api_v1_prefix,
 )
 
