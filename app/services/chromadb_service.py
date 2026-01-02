@@ -115,13 +115,13 @@ class ChromaDBService:
             doc_id = document["id"]
             searchable_text = document["searchable_text"]
             
-            # Metadata for filtering
+            # Metadata for filtering (now uses single language field)
             metadata = {
                 "type": "knowledge_reference",
                 "category": document.get("category", ""),
                 "source": document.get("source", ""),
                 "status": document.get("status", ""),
-                "languages": ",".join(document.get("languages", ["id", "en"])),
+                "language": document.get("language", "id"),  # Single language
             }
             
             # Add tags as metadata for filtering
@@ -158,13 +158,13 @@ class ChromaDBService:
             doc_id = document["id"]
             searchable_text = document["searchable_text"]
             
-            # Metadata for filtering
+            # Metadata for filtering (now uses single language field)
             metadata = {
                 "type": "journey_template",
                 "goal_keyword": document.get("goal_keyword", ""),
                 "is_active": str(document.get("is_active", False)),
                 "status": document.get("status", ""),
-                "languages": ",".join(document.get("languages", ["id", "en"])),
+                "language": document.get("language", "id"),  # Single language
                 "match_count": str(document.get("match_count", 0)),
             }
             
@@ -196,17 +196,34 @@ class ChromaDBService:
         self, 
         query: str, 
         limit: int = 5,
-        category: Optional[str] = None
+        category: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Search knowledge references by semantic similarity."""
+        """Search knowledge references by semantic similarity.
+        
+        Args:
+            query: Search query text
+            limit: Maximum number of results
+            category: Optional category filter (VERSE, HADITH, STRATEGY, DOA)
+            language: Optional language filter ('id' or 'en')
+        """
         if not self.knowledge_ref_collection:
             raise RuntimeError("ChromaDB connection not initialized")
         
         try:
-            # Build where filter if category is specified
-            where_filter = None
+            # Build where filter
+            where_conditions = []
             if category:
-                where_filter = {"category": category}
+                where_conditions.append({"category": category})
+            if language:
+                where_conditions.append({"language": language})
+            
+            # Combine conditions with $and if multiple
+            where_filter = None
+            if len(where_conditions) > 1:
+                where_filter = {"$and": where_conditions}
+            elif len(where_conditions) == 1:
+                where_filter = where_conditions[0]
             
             # Search
             results = self.knowledge_ref_collection.query(
@@ -244,17 +261,34 @@ class ChromaDBService:
         self, 
         query: str, 
         limit: int = 5,
-        active_only: bool = True
+        active_only: bool = True,
+        language: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """Search journey templates by semantic similarity."""
+        """Search journey templates by semantic similarity.
+        
+        Args:
+            query: Search query text
+            limit: Maximum number of results
+            active_only: If True, only return active templates
+            language: Optional language filter ('id' or 'en')
+        """
         if not self.journey_template_collection:
             raise RuntimeError("ChromaDB connection not initialized")
         
         try:
-            # Build where filter if active_only
-            where_filter = None
+            # Build where filter
+            where_conditions = []
             if active_only:
-                where_filter = {"is_active": "True"}
+                where_conditions.append({"is_active": "True"})
+            if language:
+                where_conditions.append({"language": language})
+            
+            # Combine conditions with $and if multiple
+            where_filter = None
+            if len(where_conditions) > 1:
+                where_filter = {"$and": where_conditions}
+            elif len(where_conditions) == 1:
+                where_filter = where_conditions[0]
             
             # Search
             results = self.journey_template_collection.query(

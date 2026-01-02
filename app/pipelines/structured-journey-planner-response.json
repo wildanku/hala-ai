@@ -1,0 +1,127 @@
+{
+    "type": "object",
+    "properties": {
+        "language": {
+            "type": "string",
+            "description": "Response language based on user input language. Values: 'id' (Indonesian) or 'en' (English)"
+        },
+        "goal": {
+            "type": "string"
+        },
+        "total_days": {
+            "type": "integer"
+        },
+        "message": {
+            "type": "string"
+        },
+        "introduction": {
+            "type": "string",
+            "description": "Warm introduction message in the detected user language"
+        },
+        "goal_keyword": {
+            "type": "string",
+            "description": "Lowercase kebab-case slug for broad categorization."
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "3-5 descriptive tags in English for semantic matching."
+        },
+        "journey": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "day": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Must be one of: reflection, sadaqah, praying, gratitude, dhikr, quran, habit_break, kindness, self_care, physical_act"
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "Use specific formats: 'morning', 'afternoon', 'evening', 'night', 'before_sleep', or exact time like 'at-05:00'"
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Task title in the detected user language"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Task description in the detected user language"
+                    },
+                    "verse": {
+                        "type": "object",
+                        "nullable": true,
+                        "description": "Optional Quranic verse with Arabic text and translation in user language",
+                        "properties": {
+                            "ar": {
+                                "type": "string",
+                                "description": "Arabic text of the verse"
+                            },
+                            "translation": {
+                                "type": "string",
+                                "description": "Translation in the detected user language"
+                            },
+                            "source": {
+                                "type": "string",
+                                "description": "Source reference e.g. 'QS. Al-Baqarah: 286'"
+                            }
+                        }
+                    }
+                },
+                "propertyOrdering": [
+                    "day",
+                    "type",
+                    "time",
+                    "title",
+                    "description",
+                    "verse"
+                ]
+            }
+        },
+        "knowledge_references": {
+            "type": "array",
+            "description": "References used from the knowledge base",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "VERSE, HADITH, STRATEGY, or DOA"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "propertyOrdering": [
+        "language",
+        "goal",
+        "total_days",
+        "message",
+        "introduction",
+        "goal_keyword",
+        "tags",
+        "journey",
+        "knowledge_references"
+    ],
+    "required": [
+        "language",
+        "goal",
+        "total_days",
+        "introduction",
+        "journey"
+    ]
+}

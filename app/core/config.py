@@ -61,7 +61,7 @@ class Settings(BaseSettings):
     max_input_length: int = 500
     
     # Layer 2: Semantic Validation
-    semantic_similarity_threshold: float = 0.35
+    semantic_similarity_threshold: float = 0.40
     
     # Layer 4: RAG
     rag_top_k_results: int = 5

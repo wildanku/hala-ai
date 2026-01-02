@@ -143,25 +143,22 @@ class SyncService:
         """
         Prepare KnowledgeReference document for ChromaDB embedding.
         
-        Combines content in multiple languages for better embedding.
+        Now handles single language content (plain text) instead of bilingual JSON.
         """
-        # Extract localized content
-        title = reference.get("title", {})
-        content = reference.get("content", {})
+        # With new schema, title and content are plain strings
+        title = reference.get("title", "")
+        content = reference.get("content", "")
+        language = reference.get("language", "id")
         
-        # Build searchable text combining all languages
+        # Build searchable text
         searchable_text_parts = []
         
-        # Add title
-        if isinstance(title, dict):
-            searchable_text_parts.extend([str(v) for v in title.values() if v])
-        else:
+        # Add title (now plain string)
+        if title:
             searchable_text_parts.append(str(title))
         
-        # Add content
-        if isinstance(content, dict):
-            searchable_text_parts.extend([str(v) for v in content.values() if v])
-        else:
+        # Add content (now plain string)
+        if content:
             searchable_text_parts.append(str(content))
         
         # Add tags
@@ -185,7 +182,7 @@ class SyncService:
             "content": content,
             "content_ar": reference.get("contentAr"),
             "tags": tags,
-            "languages": reference.get("languages", ["id", "en"]),
+            "language": language,  # Single language field
             "status": reference.get("status"),
             "searchable_text": searchable_text,
             "created_at": reference.get("createdAt"),
@@ -201,6 +198,7 @@ class SyncService:
         """
         goal_keyword = template.get("goal_keyword", "")
         tags = template.get("tags", [])
+        language = template.get("language", "id")  # Single language field
         full_json = template.get("full_json", {})
         
         # Build searchable text
@@ -209,12 +207,15 @@ class SyncService:
         
         # Extract text from full_json if available
         if isinstance(full_json, dict):
-            # Try to extract meaningful text from JSON structure
-            for key, value in full_json.items():
-                if isinstance(value, str):
-                    searchable_text_parts.append(value)
-                elif isinstance(value, dict) and "en" in value:
-                    searchable_text_parts.append(str(value.get("en", "")))
+            # Extract introduction if it's a string (new schema)
+            intro = full_json.get("introduction", "")
+            if isinstance(intro, str):
+                searchable_text_parts.append(intro)
+            
+            # Extract goal
+            goal = full_json.get("goal", "")
+            if goal:
+                searchable_text_parts.append(str(goal))
         
         searchable_text = " ".join(filter(None, searchable_text_parts))
         
@@ -223,7 +224,7 @@ class SyncService:
             "type": "journey_template",
             "goal_keyword": goal_keyword,
             "tags": tags,
-            "languages": template.get("languages", ["id", "en"]),
+            "language": language,  # Single language field
             "is_active": template.get("is_active", False),
             "status": template.get("status"),
             "match_count": template.get("match_count", 0),

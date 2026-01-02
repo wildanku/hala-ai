@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 TEMPLATE_HIGH_SIMILARITY_THRESHOLD = 0.85
 KNOWLEDGE_RELEVANCE_THRESHOLD = 0.7
 
-# System prompt for Gemini
+# System prompt for Gemini - Single language output based on user input
 JOURNEY_PLANNER_SYSTEM_PROMPT = """You are an Islamic spiritual coach creating personalized journey plans.
 
 DURATION GUIDELINES (choose based on goal complexity):
@@ -36,29 +36,36 @@ DURATION GUIDELINES (choose based on goal complexity):
 - Complex goals (grief, addiction, major life changes): 30-60 days
 - Emergency spiritual support: 1-3 days
 
-RULES:
+LANGUAGE RULES:
+1. DETECT the user's input language (Indonesian or English)
+2. RESPOND ONLY in that same language - do NOT provide bilingual translations
+3. Include the "language" field in output with value "id" for Indonesian or "en" for English
+
+OUTPUT RULES:
 1. OUTPUT: Strictly valid JSON only - no prose, no markdown, no comments
 2. DURATION: Analyze the user's goal and choose appropriate duration (1-60 days)
-3. BILINGUAL: All text must have both "id" (Indonesian) and "en" (English)
+3. SINGLE LANGUAGE: All text fields (goal, message, introduction, title, description) must be in the detected language ONLY
 4. TASK TYPES: reflection, sadaqah, praying, gratitude, dhikr, quran, habit_break, action, kindness, self_care, physical_act
 5. TIME: morning, afternoon, evening, night, before_sleep, at-HH:mm, anytime
-6. TAGS: 3-5 descriptive English tags
+6. TAGS: 3-5 descriptive English tags (tags are always in English for semantic matching)
 7. TASKS: Create 1-3 tasks per day, use day ranges for recurring tasks (e.g. "1-30")
+8. VERSE: For Quranic verses, include Arabic text in "ar" and translation in "translation" field (in user's language)
 
 Return valid JSON only."""
 
 JOURNEY_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
+        "language": {
+            "type": "string",
+            "description": "Response language based on user input: 'id' or 'en'"
+        },
         "goal": {"type": "string"},
         "total_days": {"type": "integer"},
         "message": {"type": "string"},
         "introduction": {
-            "type": "object",
-            "properties": {
-                "id": {"type": "string"},
-                "en": {"type": "string"}
-            }
+            "type": "string",
+            "description": "Warm introduction in the detected user language"
         },
         "goal_keyword": {"type": "string"},
         "tags": {"type": "array", "items": {"type": "string"}},
@@ -71,26 +78,20 @@ JOURNEY_OUTPUT_SCHEMA = {
                     "type": {"type": "string"},
                     "time": {"type": "string"},
                     "title": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "en": {"type": "string"}
-                        }
+                        "type": "string",
+                        "description": "Task title in user's detected language"
                     },
                     "description": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": "string"},
-                            "en": {"type": "string"}
-                        }
+                        "type": "string",
+                        "description": "Task description in user's detected language"
                     },
                     "verse": {
                         "type": "object",
                         "nullable": True,
                         "properties": {
                             "ar": {"type": "string"},
-                            "id": {"type": "string"},
-                            "en": {"type": "string"}
+                            "translation": {"type": "string"},
+                            "source": {"type": "string"}
                         }
                     }
                 }
@@ -243,31 +244,40 @@ def _transform_gemini_response(gemini_data: Dict[str, Any]) -> Dict[str, Any]:
 async def _hybrid_search(
     chromadb_service: ChromaDBService,
     query: str,
+    language: str = "id",
 ) -> Dict[str, Any]:
     """
     Perform hybrid search in ChromaDB for templates and knowledge references.
     
+    Args:
+        chromadb_service: ChromaDB service instance
+        query: User's search query
+        language: Detected user language ('id' or 'en') for filtering
+    
     Returns:
         Dict with 'templates' and 'knowledge_references' lists
     """
-    # Search journey templates
+    # Search journey templates - filtered by language
     templates = await chromadb_service.search_journey_templates(
         query=query,
         limit=3,
         active_only=True,
+        language=language,
     )
     
-    # Search knowledge references
+    # Search knowledge references - filtered by language
     knowledge_refs = await chromadb_service.search_knowledge_references(
         query=query,
         limit=10,
+        language=language,
     )
     
-    # Also search for STORY type specifically
+    # Also search for STORY type specifically - filtered by language
     story_refs = await chromadb_service.search_knowledge_references(
         query=query,
         limit=3,
         category="STORY",
+        language=language,
     )
     
     return {
@@ -278,7 +288,10 @@ async def _hybrid_search(
 
 
 def _format_references_for_prompt(search_results: Dict[str, Any]) -> str:
-    """Format search results into a string for the LLM prompt."""
+    """Format search results into a string for the LLM prompt.
+    
+    Uses new single-language schema where content is plain text.
+    """
     references = []
     
     # Format knowledge references
@@ -291,29 +304,35 @@ def _format_references_for_prompt(search_results: Dict[str, Any]) -> str:
             continue
             
         category = doc.get("category", "UNKNOWN")
-        content_id = doc.get("content_id", "")
-        content_en = doc.get("content_en", "")
+        content = doc.get("content", "")  # Now plain text, single language
+        title = doc.get("title", "")  # Now plain text
         source = doc.get("source", "")
+        content_ar = doc.get("content_ar", "")  # Arabic for VERSE/HADITH
         
         if category == "VERSE":
-            references.append(f"- Verse ({source}): {content_id}")
+            references.append(f"- Verse ({source}): {title or content}")
+            if content_ar:
+                references.append(f"  Arabic: {content_ar}")
         elif category == "HADITH":
-            references.append(f"- Hadith ({source}): {content_id}")
+            references.append(f"- Hadith ({source}): {title or content}")
+            if content_ar:
+                references.append(f"  Arabic: {content_ar}")
         elif category == "DOA":
-            references.append(f"- Doa: {content_id}")
+            references.append(f"- Doa: {title or content}")
         elif category == "STRATEGY":
-            references.append(f"- Strategy: {content_id}")
+            references.append(f"- Strategy: {title or content}")
         elif category == "STORY":
-            references.append(f"- Story/Wisdom: {content_id}")
+            references.append(f"- Story/Wisdom: {title or content}")
     
     # Ensure at least one story is included
     story_added = any("Story/Wisdom" in r for r in references)
     if not story_added:
         for story in search_results.get("stories", []):
             doc = story.get("document", {})
-            content_id = doc.get("content_id", "")
-            if content_id:
-                references.append(f"- Story/Wisdom: {content_id}")
+            title = doc.get("title", "")
+            content = doc.get("content", "")
+            if title or content:
+                references.append(f"- Story/Wisdom: {title or content}")
                 break
     
     return "\n".join(references) if references else "(No specific references found - use your knowledge as an Islamic life coach)"
@@ -325,26 +344,32 @@ def _build_user_prompt(
     template: Optional[Dict] = None,
     language: str = "id",
 ) -> str:
-    """Build the user prompt for journey generation."""
+    """Build the user prompt for journey generation with single-language output."""
+    
+    language_name = "Indonesian" if language == "id" else "English"
     
     return f"""USER GOAL: {user_input}
-LANGUAGE PREFERENCE: {language}
+DETECTED LANGUAGE: {language_name} ({language})
 
 REFERENCES FROM DATABASE:
 {references if references else "(No specific references - use your Islamic knowledge)"}
 
 INSTRUCTIONS:
-1. Analyze the user's goal and determine the appropriate journey duration (1-60 days)
-2. For simple habits: 7-14 days
-3. For building practices: 14-30 days
-4. For grief/addiction/major changes: 30-60 days
-5. Create meaningful tasks with variety
+1. Respond ONLY in {language_name} - do NOT provide translations
+2. Analyze the user's goal and determine the appropriate journey duration (1-60 days)
+3. For simple habits: 7-14 days
+4. For building practices: 14-30 days
+5. For grief/addiction/major changes: 30-60 days
+6. Create meaningful tasks with variety
+7. Tags must always be in English (for database matching)
 
 Output this exact JSON structure:
 {{
-  "goal": "<restate user goal>",
+  "language": "{language}",
+  "goal": "<restate user goal in {language_name}>",
   "total_days": <number between 1-60 based on goal complexity>,
-  "introduction": {{"id": "<warm Indonesian intro>", "en": "<warm English intro>"}},
+  "message": "<encouraging message in {language_name}>",
+  "introduction": "<warm introduction in {language_name}>",
   "goal_keyword": "<kebab-case-keyword>",
   "tags": ["tag1", "tag2", "tag3"],
   "journey": [
@@ -352,13 +377,18 @@ Output this exact JSON structure:
       "day": "1" or "1-7" for recurring,
       "type": "<task type>",
       "time": "<time of day>",
-      "title": {{"id": "<Indonesian>", "en": "<English>"}},
-      "description": {{"id": "<Indonesian>", "en": "<English>"}}
+      "title": "<title in {language_name}>",
+      "description": "<description in {language_name}>",
+      "verse": {{
+        "ar": "<Arabic text if applicable>",
+        "translation": "<translation in {language_name}>",
+        "source": "<source reference e.g. QS. Al-Baqarah: 286>"
+      }}
     }}
   ]
 }}
 
-IMPORTANT: Return ONLY valid JSON. No markdown, no explanation."""
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanation. All text content must be in {language_name} only."""
 
 
 @router.post(
@@ -386,8 +416,8 @@ async def generate_journey(request: JourneyRequest):
     start_time = time.perf_counter()
     
     try:
-        # Step 1: Fast validation (sanitization only for performance)
-        validation_result = await _validate_input_fast(request)
+        # Step 1: Full validation (sanitization, semantic, safety) - BEFORE expensive LLM calls
+        validation_result = await _validate_input_full(request)
         
         if not validation_result.get("is_valid"):
             status_code = _get_status_code(validation_result.get("error_code"))
@@ -401,13 +431,25 @@ async def generate_journey(request: JourneyRequest):
                 },
             )
         
-        # Step 2: Initialize ChromaDB and perform hybrid search
+        # Get detected language from validation
+        detected_language = validation_result.get("context").detected_language if validation_result.get("context") else request.language
+        if hasattr(detected_language, 'value'):
+            detected_language = detected_language.value
+        
+        logger.info(f"Validation passed. Detected language: {detected_language}, Scope: {validation_result.get('detected_scope')}")
+        
+        # Step 2: Initialize ChromaDB and perform hybrid search with language filter
         chromadb_service = ChromaDBService(persist_directory=settings.chroma_persist_directory)
         await chromadb_service.connect()
         
-        search_results = await _hybrid_search(chromadb_service, request.prompt)
+        # Search with language filter to get matching content
+        search_results = await _hybrid_search(
+            chromadb_service, 
+            request.prompt,
+            language=detected_language,
+        )
         
-        # Step 3: Decide route based on template similarity
+        # Step 3: Decide route based on template similarity AND language match
         templates = search_results.get("templates", [])
         best_template = None
         template_similarity = 0.0
@@ -419,21 +461,29 @@ async def generate_journey(request: JourneyRequest):
             distance = best_template_result.get("distance", 1.0)
             template_similarity = 1.0 - distance
             
+            # Check if template language matches user language
+            template_language = best_template_result.get("metadata", {}).get("language", "id")
+            
             if template_similarity >= TEMPLATE_HIGH_SIMILARITY_THRESHOLD:
-                best_template = best_template_result
-                logger.info(f"Using template with similarity {template_similarity:.2f}")
+                if template_language == detected_language:
+                    best_template = best_template_result
+                    logger.info(f"Using template with similarity {template_similarity:.2f} (language: {template_language})")
+                else:
+                    # Template found but language doesn't match - generate new journey
+                    logger.info(f"Template found (similarity: {template_similarity:.2f}) but language mismatch: template={template_language}, user={detected_language}. Generating new journey.")
+                    best_template = None
             else:
                 logger.info(f"No high-similarity template found (best: {template_similarity:.2f})")
         
         # Step 4: Format references for prompt
         references = _format_references_for_prompt(search_results)
         
-        # Step 5: Build prompt and generate with Gemini
+        # Step 5: Build prompt and generate with Gemini using detected language
         user_prompt = _build_user_prompt(
             user_input=request.prompt,
             references=references,
             template=best_template,
-            language=request.language.value if hasattr(request.language, 'value') else request.language,
+            language=detected_language,
         )
         
         # Initialize Gemini provider

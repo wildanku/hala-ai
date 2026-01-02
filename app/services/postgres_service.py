@@ -47,11 +47,19 @@ class PostgresService:
             self.pool = None
             logger.info("Disconnected from PostgreSQL")
     
-    async def fetch_knowledge_references(self) -> List[Dict[str, Any]]:
-        """Fetch all knowledge references from database."""
+    async def fetch_knowledge_references(
+        self, 
+        language: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch all knowledge references from database.
+        
+        Args:
+            language: Optional language filter ('id' or 'en')
+        """
         if not self.pool:
             raise RuntimeError("Database connection not initialized")
         
+        # Base query for new schema (single language field, plain text content)
         query = """
             SELECT 
                 id,
@@ -61,27 +69,31 @@ class PostgresService:
                 content,
                 "contentAr",
                 tags,
-                languages,
+                language,
                 status,
                 "createdAt",
                 "updatedAt"
             FROM "KnowledgeReference"
             WHERE status != 'REJECTED'
-            ORDER BY "updatedAt" DESC
         """
         
+        params = []
+        if language:
+            query += " AND language = $1"
+            params.append(language)
+        
+        query += ' ORDER BY "updatedAt" DESC'
+        
         async with self.pool.acquire() as connection:
-            rows = await connection.fetch(query)
+            if params:
+                rows = await connection.fetch(query, *params)
+            else:
+                rows = await connection.fetch(query)
             
-            # Convert rows to dictionaries with proper field names
+            # Convert rows to dictionaries (title and content are now plain text)
             results = []
             for row in rows:
                 result = dict(row)
-                # Ensure JSON fields are properly parsed
-                if isinstance(result.get("title"), str):
-                    result["title"] = json.loads(result["title"])
-                if isinstance(result.get("content"), str):
-                    result["content"] = json.loads(result["content"])
                 results.append(result)
             
             return results
@@ -100,7 +112,7 @@ class PostgresService:
                 content,
                 "contentAr",
                 tags,
-                languages,
+                language,
                 status,
                 "createdAt",
                 "updatedAt"
@@ -114,17 +126,19 @@ class PostgresService:
             if not row:
                 return None
             
+            # Title and content are now plain text, no JSON parsing needed
             result = dict(row)
-            # Parse JSON fields
-            if isinstance(result.get("title"), str):
-                result["title"] = json.loads(result["title"])
-            if isinstance(result.get("content"), str):
-                result["content"] = json.loads(result["content"])
-            
             return result
     
-    async def fetch_journey_templates(self) -> List[Dict[str, Any]]:
-        """Fetch all journey templates from database."""
+    async def fetch_journey_templates(
+        self, 
+        language: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch all journey templates from database.
+        
+        Args:
+            language: Optional language filter ('id' or 'en')
+        """
         if not self.pool:
             raise RuntimeError("Database connection not initialized")
         
@@ -133,7 +147,7 @@ class PostgresService:
                 id,
                 goal_keyword,
                 tags,
-                languages,
+                language,
                 full_json,
                 status::text,
                 is_active,
@@ -142,11 +156,20 @@ class PostgresService:
                 "updatedAt"
             FROM "JourneyTemplate"
             WHERE status::text != 'ARCHIVED'
-            ORDER BY "updatedAt" DESC
         """
         
+        params = []
+        if language:
+            query += " AND language = $1"
+            params.append(language)
+        
+        query += ' ORDER BY "updatedAt" DESC'
+        
         async with self.pool.acquire() as connection:
-            rows = await connection.fetch(query)
+            if params:
+                rows = await connection.fetch(query, *params)
+            else:
+                rows = await connection.fetch(query)
             
             # Convert rows to dictionaries
             results = []
@@ -169,7 +192,7 @@ class PostgresService:
                 id,
                 goal_keyword,
                 tags,
-                languages,
+                language,
                 full_json,
                 status::text,
                 is_active,
@@ -207,7 +230,7 @@ class PostgresService:
                 content,
                 "contentAr",
                 tags,
-                languages,
+                language,
                 status,
                 "createdAt",
                 "updatedAt"
@@ -219,13 +242,10 @@ class PostgresService:
         async with self.pool.acquire() as connection:
             rows = await connection.fetch(query, timestamp)
             
+            # Title and content are now plain text
             results = []
             for row in rows:
                 result = dict(row)
-                if isinstance(result.get("title"), str):
-                    result["title"] = json.loads(result["title"])
-                if isinstance(result.get("content"), str):
-                    result["content"] = json.loads(result["content"])
                 results.append(result)
             
             return results
@@ -240,7 +260,7 @@ class PostgresService:
                 id,
                 goal_keyword,
                 tags,
-                languages,
+                language,
                 full_json,
                 status::text,
                 is_active,

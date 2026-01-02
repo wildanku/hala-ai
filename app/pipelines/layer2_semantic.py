@@ -54,23 +54,78 @@ from app.core.config import settings
 
 OFFICIAL_SCOPES = [
     # 1. Worship, Rituals & Spiritual Roadmap (Focus: Amalan & Hajat)
-    "Daily worship plan amalan harian rutin ibadah doa khusus hajat wirid zikir rezeki lancar sholawat nariyah munjiyat pintu langit salat sholat lima waktu tahajjud qiyamul lail night prayer subuh dzuhur ashar maghrib isya sunnah rawatib dhuha doa supplication dhikr zikir pagi petang remembrance of allah quran journaling tilawah recitation fasting puasa ramadan sunnah senin kamis daud zakat infaq shadaqah charity hajj umrah pilgrimage ritual spiritual roadmap journey",
+    """Saya ingin meningkatkan ibadah dan amalan harian saya. Bagaimana cara menjaga konsistensi sholat lima waktu dan tahajjud?
+    Saya ingin mendekatkan diri kepada Allah melalui doa, zikir, dan tilawah Al-Quran setiap hari.
+    Tolong buatkan jadwal ibadah untuk meningkatkan kualitas spiritual saya termasuk puasa sunnah dan sholawat.
+    I want to improve my daily worship routine including prayer, fasting, Quran recitation, and remembrance of Allah.
+    Help me create a spiritual roadmap with tahajjud, dhuha prayer, morning and evening adhkar, and consistent dhikr practice.
+    How can I be more consistent with my salat, sunnah prayers, and Ramadan preparation?
+    Saya ingin belajar sholat dengan benar dan khusyuk. Bantu saya dengan amalan wirid dan zikir harian.""",
     
     # 2. Mental Health, Emotional Healing & Resilience (Focus: Feelings & Inner Peace)
-    "Mental health emotional healing ketenangan jiwa batin anxiety cemas gelisah khawatir worry depression sedih murung sadness stress management burnout overthinking quarter-life crisis self-care healing trauma psychological wellbeing inner peace istirahat rest relaxation mindfulness tafakkur muhasabah therapy counseling self-love forgiveness memaafkan ikhlas ridho patience sabar coping mechanism emosi stabil grief duka berduka bela sungkawa condolences kehilangan loss bereavement mourning curhat venting sharing feelings keluh kesah kesepian loneliness trauma healing",
+    """Saya sedang berduka setelah kehilangan ibu saya. Ayah saya meninggal dan saya sangat sedih.
+    Saya kehilangan orang yang saya sayangi dan hati saya hancur. Bagaimana cara menghadapi duka dan kesedihan ini?
+    Ibu saya wafat dan saya tidak tahu harus berbuat apa. Saya merasa sangat kehilangan dan terpuruk.
+    Saya merasa cemas, gelisah, dan overthinking setiap hari. Saya butuh ketenangan batin dan kedamaian jiwa.
+    Saya mengalami stres berat, burnout, dan depresi. Bagaimana cara menyembuhkan trauma dan luka batin saya?
+    I am grieving after losing my mother. My father passed away and I feel devastated and heartbroken.
+    I lost someone I love and I don't know how to cope with this grief, loss, and bereavement.
+    I struggle with anxiety, worry, stress, and mental health issues. Help me find inner peace and emotional healing.
+    Saya merasa kesepian, sedih, dan butuh curhat. Hati saya berat sekali. Tolong bantu saya sembuh dari luka ini.""",
     
     # 3. Productivity, Halal Wealth & Career (Focus: "Pengen Kaya" & Halal Success)
-    "Productivity wealth financial success rizki rezeki berlimpah kaya wealthy sukses muda entrepreneurship bisnis islami halal money abundance manajemen waktu amanah tanggung jawab discipline disiplin focus concentration konsentrasi habits formation kebiasaan routine rutinitas goal setting target achieve capai tujuan work-life balance remote work istiqomah consistent consistency organized planning scheduling efficiency effectiveness procrastination menunda pekerjaan karir islami islamic career professional growth",
+    """Saya ingin sukses dan kaya secara halal. Bagaimana cara meningkatkan produktivitas dan rezeki saya?
+    Saya ingin membangun bisnis islami dan mencapai financial freedom dengan cara yang berkah dan halal.
+    Tolong bantu saya mengatur waktu, fokus pada tujuan karir, dan mengatasi kebiasaan menunda pekerjaan.
+    I want to be productive, wealthy, and financially successful through halal means and hard work.
+    Help me with time management, discipline, and achieving my career goals as a Muslim professional.
+    I struggle with procrastination and want to be more organized, efficient, and consistent in my work and business.""",
     
     # 4. Marriage, Jodoh & Social Conduct (Focus: "Dapat Jodoh" & Relationships)
-    "Marriage nikah keluarga family relationships mencari jodoh cepat dapat jodoh jodoh impian pasangan sholeh sholehah taaruf soulmate spouse suami istri husband wife parenting anak children orang tua parents family harmony relationship advice dating syari pre-marital guidance silaturahmi ukhuwah brotherhood sisterhood social conduct adab bergaul community involvement household management bakti orang tua birrul walidain lamaran khitbah persiapan nikah",
+    """Saya ingin segera menikah dan mendapatkan jodoh yang sholeh atau sholehah. Bagaimana caranya?
+    Saya ingin memperbaiki hubungan dengan keluarga, orang tua, suami, istri, dan anak-anak saya.
+    Tolong bantu saya mempersiapkan pernikahan, taaruf, dan menjadi suami atau istri yang baik.
+    I want to find a righteous spouse and get married soon. How do I prepare for marriage and taaruf?
+    Help me improve my relationships with family, parents, spouse, and children.
+    I want to be a better parent, maintain family harmony, and fulfill my duties to my parents (birrul walidain).""",
     
     # 5. Akhlaq, Identity & Personal Growth (Focus: Character Transformation)
-    "Character building akhlaq akhlak self-improvement personal development pengembangan diri moral values nilai moral identity krisis identitas humility tawadhu sincerity niat intention behavior improvement attitude mindset positive thinking syukur gratitude modesty malu jujur amanah integrity bravery keberanian self-control menahan hawa nafsu mujahadah an-nafs memantaskan diri",
+    """Saya ingin memperbaiki akhlak dan menjadi pribadi yang lebih baik. Bagaimana cara mengembangkan diri?
+    Saya mengalami krisis identitas dan ingin menemukan jati diri sebagai Muslim yang lebih baik.
+    Tolong bantu saya menjadi lebih sabar, syukur, rendah hati, dan jujur dalam kehidupan sehari-hari.
+    I want to improve my character, morals, and become a better person with good akhlaq.
+    Help me develop humility, gratitude, sincerity, and self-control. I want to grow as a Muslim.
+    I struggle with my attitude and mindset. How can I build integrity, patience, and positive thinking?""",
     
     # 6. Repentance, Recovery & Overcoming Struggles (Focus: Breaking Bad Habits)
-    "Repentance taubat nasuha istighfar seeking forgiveness spiritual growth hijrah meninggalkan maksiat bad habits formation berhenti merokok addiction recovery porn addiction tawakkal trust in allah faith iman islamic values understanding islam learning agama following prophet muhammad sunnah prophetic examples overcoming fear turning back to god perbaikan perilaku"
+    """Saya ingin bertaubat dan meninggalkan kebiasaan buruk. Bagaimana cara hijrah dan memperbaiki diri?
+    Saya kecanduan dan ingin berhenti. Tolong bantu saya kembali ke jalan yang benar.
+    Saya ingin mendekatkan diri kepada Allah setelah banyak berbuat dosa dan maksiat.
+    I want to repent and seek forgiveness from Allah. Help me overcome my bad habits and addiction.
+    I want to make hijrah, leave my sinful past behind, and become a better Muslim.
+    How can I strengthen my faith (iman), trust in Allah (tawakkal), and follow the Prophet's sunnah?"""
 ]
+
+# Keywords that indicate genuine platform-related queries
+PLATFORM_KEYWORDS = {
+    # Islamic/Spiritual terms
+    "islamic": ["sholat", "doa", "ibadah", "quran", "tilawah", "zikir", "dhikr", "tahajjud", "dhuha", "sunnah", "islam", "muslim", "allah", "niat", "ikhlas", "taubat", "hijrah", "iman", "tawakkal", "dosa", "maksiat", "halal", "haram", "sholeh", "sholehah", "taaruf", "nikah", "pernikahan", "jodoh", "akhlaq", "akhlak", "adab", "istighfar", "forgiveness", "prayer", "worship", "spiritual", "faith", "quran", "prophet", "sunnah", "ramadan", "fasting", "hajj"],
+    
+    # Mental Health & Emotions
+    "mental_health": ["cemas", "gelisah", "khawatir", "worry", "anxiety", "stress", "sedih", "sad", "depression", "depresi", "trauma", "duka", "berduka", "grief", "heartbroken", "hancur", "terpuruk", "kehilangan", "meninggal", "wafat", "kesepian", "loneliness", "curhat", "burnout", "overthinking", "ketenangan", "peace", "inner", "healing", "sembuh", "batin", "jiwa"],
+    
+    # Productivity & Wealth
+    "productivity": ["produktif", "produktivitas", "sukses", "successful", "kaya", "wealthy", "rezeki", "wealth", "bisnis", "business", "karir", "career", "kerja", "work", "entrepreneur", "waktu", "time", "fokus", "focus", "disiplin", "discipline", "kebiasaan", "habit", "tujuan", "goal", "efficient", "procrastination", "menunda"],
+    
+    # Relationships & Family
+    "relationships": ["nikah", "menikah", "marriage", "jodoh", "pasangan", "spouse", "suami", "istri", "husband", "wife", "keluarga", "family", "orang tua", "parents", "anak", "children", "hubungan", "relationship", "taaruf", "keharmonisan", "harmony", "anak", "parenting"],
+    
+    # Character & Growth
+    "character": ["akhlaq", "akhlak", "karakter", "character", "diri", "self", "pertumbuhan", "growth", "pengembangan", "development", "perbaikan", "improvement", "sabar", "patience", "syukur", "gratitude", "rendah hati", "humble", "jujur", "honest", "ikhlas", "sincere", "amanah", "integrity", "identitas", "identity"],
+    
+    # Recovery & Habits
+    "recovery": ["taubat", "repentance", "hijrah", "berhenti", "stop", "kecanduan", "addiction", "maksiat", "sin", "dosa", "kebiasaan buruk", "bad habits", "memperbaiki", "improve", "kembali", "return", "jalan yang benar", "right path", "iman", "faith"]
+}
 
 
 class SemanticValidationLayer(PipelineLayer):
@@ -84,6 +139,11 @@ class SemanticValidationLayer(PipelineLayer):
     # Class-level cache for scope embeddings (shared across instances)
     _cached_scope_embeddings: Optional[list[np.ndarray]] = None
     _embeddings_lock = False  # Simple lock to prevent multiple initializations
+    
+    @classmethod
+    def invalidate_cache(cls):
+        """Invalidate cached embeddings (call when OFFICIAL_SCOPES changes)."""
+        cls._cached_scope_embeddings = None
     
     def __init__(
         self,
@@ -181,6 +241,19 @@ class SemanticValidationLayer(PipelineLayer):
                 execution_time_ms=execution_time,
             )
         
+        # Secondary validation: check for meaningful platform-related keywords
+        # This helps reject nonsense queries that happen to score high semantically
+        keyword_match = self._check_keyword_relevance(context.processed_input)
+        if max_similarity < 0.50 and not keyword_match:
+            # If semantic score is borderline and no keywords found, reject it
+            return self._create_rejection_result(
+                error_code="OUT_OF_SCOPE",
+                message_id="Maaf, permintaanmu berada di luar jangkauan bimbingan Hala Journal.",
+                message_en="Sorry, your request is outside the scope of Hala Journal guidance.",
+                suggested_action="Try asking about spiritual habits, worship, mental health, or productivity.",
+                execution_time_ms=execution_time,
+            )
+        
         # Set detected scope
         context.detected_scope = scope_names[best_scope_index] if best_scope_index >= 0 else "general"
         
@@ -192,3 +265,21 @@ class SemanticValidationLayer(PipelineLayer):
     def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors."""
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+    
+    def _check_keyword_relevance(self, text: str) -> bool:
+        """
+        Secondary validation: check if text contains meaningful platform-related keywords.
+        Returns True if at least one keyword from platform domains is found.
+        """
+        text_lower = text.lower()
+        
+        # Count keywords found across all categories
+        keywords_found = 0
+        for category, keywords in PLATFORM_KEYWORDS.items():
+            for keyword in keywords:
+                if keyword.lower() in text_lower:
+                    keywords_found += 1
+                    break  # Count once per category
+        
+        # Require at least one category's keywords to be present
+        return keywords_found >= 1

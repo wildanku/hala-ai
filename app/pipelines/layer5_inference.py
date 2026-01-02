@@ -8,7 +8,7 @@ from typing import Optional, Any
 from app.pipelines.base import PipelineLayer, PipelineContext, PipelineResult
 
 
-# System prompt template for journey generation
+# System prompt template for journey generation - Single language based on user input
 JOURNEY_SYSTEM_PROMPT = """You are Hala Journal's AI companion, specializing in creating personalized spiritual and productivity journeys based on authentic Islamic sources.
 
 STRICT RULES:
@@ -16,42 +16,49 @@ STRICT RULES:
 2. NEVER fabricate or hallucinate any Quran verse or Hadith
 3. If the context doesn't contain enough information, acknowledge this limitation
 4. Always cite the source (Surah:Ayah for Quran, Book for Hadith)
-5. Respond in the user's language (Indonesian or English)
+5. DETECT the user's input language and respond ONLY in that same language
+6. Include the "language" field in output with value "id" for Indonesian or "en" for English
+7. Do NOT provide bilingual translations - respond in ONE language only
 
 CONTEXT FROM KNOWLEDGE BASE:
 {context}
 
 USER'S DETECTED SCOPE: {scope}
+DETECTED LANGUAGE: {language}
 """
 
 JOURNEY_OUTPUT_FORMAT = """
-Generate a 14-day spiritual journey in the following JSON format:
-{
-    "journey_title": "string",
-    "journey_description": "string",
+Generate a 14-day spiritual journey in the following JSON format.
+IMPORTANT: All text content (journey_title, journey_description, theme, title, description, prompt, questions) 
+must be in the detected user language ONLY. Do not provide translations.
+
+{{
+    "language": "<id or en based on user input>",
+    "journey_title": "<title in user's language>",
+    "journey_description": "<description in user's language>",
     "scope": "string",
     "days": [
-        {
+        {{
             "day": 1,
-            "theme": "string",
-            "morning_task": {
-                "title": "string",
-                "description": "string",
+            "theme": "<theme in user's language>",
+            "morning_task": {{
+                "title": "<title in user's language>",
+                "description": "<description in user's language>",
                 "verse_reference": "string (optional)",
                 "hadith_reference": "string (optional)"
-            },
-            "evening_reflection": {
-                "prompt": "string",
-                "journaling_questions": ["string"]
-            }
-        }
+            }},
+            "evening_reflection": {{
+                "prompt": "<prompt in user's language>",
+                "journaling_questions": ["<questions in user's language>"]
+            }}
+        }}
     ],
-    "sources_used": {
+    "sources_used": {{
         "verses": ["string"],
         "hadith": ["string"],
         "strategies": ["string"]
-    }
-}
+    }}
+}}
 """
 
 
@@ -102,15 +109,23 @@ class LLMInferenceLayer(PipelineLayer):
             # Build the context string from retrieved documents
             context_str = self._build_context_string(context)
             
-            # Build the full system prompt
+            # Get detected language from context (set by Layer 1)
+            detected_language = context.detected_language or context.language
+            language_name = "Indonesian" if detected_language == "id" else "English"
+            
+            # Build the full system prompt with language
             system_prompt = self._system_prompt.format(
                 context=context_str,
                 scope=context.detected_scope or "general",
+                language=f"{language_name} ({detected_language})",
             )
             
-            # Build the user message
+            # Build the user message with language instruction
             user_message = f"""
 User's Request: {context.processed_input}
+Detected Language: {language_name} ({detected_language})
+
+IMPORTANT: Respond ONLY in {language_name}. Do not provide translations.
 
 {self._output_format}
 """

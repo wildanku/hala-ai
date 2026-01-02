@@ -1,0 +1,93 @@
+{
+    "type": "object",
+    "properties": {
+        "goal": {
+            "type": "string"
+        },
+        "total_days": {
+            "type": "integer"
+        },
+        "message": {
+            "type": "string"
+        },
+        "introduction": {
+            "type": "object",
+            "properties": "string"
+        },
+        "goal_keyword": {
+            "type": "string",
+            "description": "Lowercase kebab-case slug for broad categorization."
+        },
+        "tags": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "3-5 descriptive tags in English for semantic matching."
+        },
+        "language": "string",
+        "journey": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "day": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "description": "Must be one of: reflection, sadaqah, praying, gratitude, dhikr, quran, habit_breakkindness, self_care, physical_act"
+                    },
+                    "time": {
+                        "type": "string",
+                        "description": "Use specific formats: 'morning', 'afternoon', 'evening', 'night', 'before_sleep', or exact time like 'at-05:00'"
+                    },
+                    "title": {
+                        "type": "object",
+                        "properties": "string"
+                    },
+                    "description": {
+                        "type": "object",
+                        "properties": "string"
+                    },
+                    "verse": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "ar": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "en": {
+                                "type": "string"
+                            }
+                        },
+                        "propertyOrdering": [
+                            "ar",
+                            "id",
+                            "en"
+                        ]
+                    }
+                },
+                "propertyOrdering": [
+                    "day",
+                    "type",
+                    "time",
+                    "title",
+                    "description",
+                    "verse"
+                ]
+            }
+        }
+    },
+    "propertyOrdering": [
+        "goal",
+        "total_days",
+        "message",
+        "introduction",
+        "goal_keyword",
+        "journey"
+    ]
+}
